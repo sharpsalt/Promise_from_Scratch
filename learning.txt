@@ -1,0 +1,17 @@
+npm install -g typescript 
+npm init -y
+tsc --init
+
+
+for running
+___________
+tsc
+node src/index.js 
+
+
+
+or if you want better steup like instead of manually compiling everytime then 
+
+npm install -D typescript ts-node @types/node
+
+npx tx-node src/index.js
