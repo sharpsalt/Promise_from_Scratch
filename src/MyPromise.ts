@@ -91,8 +91,58 @@ export class MyPromise<T>{
         this.handlers=[]
     }
 
-    
+    /**
+     * runHandler
+     * It is the heart of the Promise machinery
+     * 
+     * why queueMicrTask and not just call the function directly?
+     * The Promise/A+ spec requires that onFulfilled and onRejected
+     * are called asynchornously
+     * 
+     * This makes Promise behaviour predictable:
+     *    promise.then(fn)
+     *    console.log('sync')
+     * fn always runs AFTER 'sync', guaranteed,even if promise is 
+     * already fulfilled when .then() is called
+     * 
+     * Microtsaks run AFTER the curren cal stack empties but BEFORE
+     * any macrostasks (set Timeout,i/o callbacks,etc)
+     */
+    private runHandler(handler: Handler<T>):void{
+        queueMicrotask(()=>{
+            //By the time this runs,state is definitely fulfilled or rejected
+            if(this.state==='fulfilled'){
+                if(typeof handler.onFulfilled!=='function'){
+                    handler.resolve(this.value)
+                    return
+                }
+                try{
+                    const x=handler.onFulfilled(this.value as T)
+                    this.resolveWithX(x,handler.resolve,handler.reject)
+                }catch(e){
+                    handler.reject(e)
+                }
+            }else if(this.state==='rejected'){
+                if(typeof handler.onRejected!=='function'){
+                    handler.reject(this.reason)
+                    return
+                }
+                try{
+                    const x=handler.onRejected(this.reason)
+                    this.resolveWithX(x,handler.resolve,handler.reject)
+                }catch(e){
+                    handler.reject(e)
+                }
+            }
+        })
+    }
+
+    //
+   
 }
+
+
+
 
 
 
