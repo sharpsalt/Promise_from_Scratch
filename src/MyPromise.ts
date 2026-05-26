@@ -78,6 +78,20 @@ export class MyPromise<T>{
     }
 
     //flush
+    //called once after the promise ssttles
+    //runs every ahndler that was queued up while we were pending
+    private flush():void{
+        for(const handler of this.handler){
+            this.runHandler(handler)
+        }
+
+        //clear the qeueue.we're  done with it 
+        //any future .then() calls will skip the queueu and go directly 
+        //to runHandler (see .then() implementation)
+        this.handlers=[]
+    }
+
+    
 }
 
 
