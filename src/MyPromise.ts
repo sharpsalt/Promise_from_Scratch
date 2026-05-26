@@ -1,4 +1,4 @@
-import {type State,type Handler,type Executor,type PromiseLike} from './types';
+import {type State,type Handler,type Executor,type PromiseLike} from './types.js';
 
 export class MyPromise<T>{
     //private fields
@@ -9,7 +9,7 @@ export class MyPromise<T>{
     private value:T | undefined=undefined
 
     //reason is set when reject,until then it is undefined
-    private reason:T | undefined=undefined
+    private reason:unknown=undefined
 
     //The callback Queue
     /**
@@ -73,7 +73,7 @@ export class MyPromise<T>{
     private reject(reason?:unknown):void{
         if(this.state!=='pending')return
         this.state='rejected'
-        this.reason=reason
+        this.reason=reason as unknown
         this.flush()
     }
 
@@ -81,7 +81,7 @@ export class MyPromise<T>{
     //called once after the promise ssttles
     //runs every ahndler that was queued up while we were pending
     private flush():void{
-        for(const handler of this.handler){
+        for(const handler of this.handlers){
             this.runHandler(handler)
         }
 
@@ -192,8 +192,8 @@ export class MyPromise<T>{
  
     // Build the handler for this .then() call.
     const handler: Handler<T> = {
-      onFulfilled: typeof onFulfilled === 'function' ? onFulfilled : undefined,
-      onRejected: typeof onRejected === 'function' ? onRejected : undefined,
+      ...(typeof onFulfilled === 'function' ? { onFulfilled } : {}),
+      ...(typeof onRejected === 'function' ? { onRejected } : {}),
       resolve: nextResolve,
       reject: nextReject,
     }
@@ -248,9 +248,9 @@ export class MyPromise<T>{
  
       // Rejected branch: run fn, wait for it, then re-throw original reason
       (reason) =>
-        MyPromise.resolve(fn()).then(() => {
+        MyPromise.resolve(fn()).then((): T => {
           throw reason
-        }) as MyPromise<T>
+        })
     ) as MyPromise<T>
   }
  
