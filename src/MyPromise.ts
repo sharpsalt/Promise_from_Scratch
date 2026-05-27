@@ -1,4 +1,4 @@
-import {type State,type Handler,type Executor,type PromiseLike} from './types.js';
+import {type State,type Handler,type Executor,type Thenable} from './types.js';
 
 export class MyPromise<T>{
     //private fields
@@ -46,7 +46,7 @@ export class MyPromise<T>{
     //resolve
     //called when the async work suceeds
     //private because only the executor via th e bound function should call it 
-    private resolve(value:T|PromiseLike<T>):void{
+    private resolve(value:T|Thenable<T>):void{
         //Guard:once settled,ignore all further calls
         //this is what makes promises "resolved at most once"
         if(this.state!=='pending')return
@@ -177,8 +177,8 @@ export class MyPromise<T>{
   // The core API method. Returns a NEW promise every time.
   // This is what makes chaining work.
   then<R = T>(
-    onFulfilled?: ((value: T) => R | PromiseLike<R>) | null,
-    onRejected?: ((reason: unknown) => R | PromiseLike<R>) | null
+    onFulfilled?: ((value: T) => R | Thenable<R>) | null,
+    onRejected?: ((reason: unknown) => R | Thenable<R>) | null
   ): MyPromise<R> {
     // The new promise that THIS .then() call produces.
     // Its fate depends entirely on what onFulfilled/onRejected return.
@@ -228,7 +228,7 @@ export class MyPromise<T>{
   // Pure sugar. .catch(fn) is identical to .then(undefined, fn).
   // Nothing more, nothing less.
   catch<R = never>(
-    onRejected?: ((reason: unknown) => R | PromiseLike<R>) | null
+    onRejected?: ((reason: unknown) => R | Thenable<R>) | null
   ): MyPromise<T | R> {
     return this.then<T | R>(undefined, onRejected)
   }
@@ -240,7 +240,7 @@ export class MyPromise<T>{
   //   2. Original value/reason passes THROUGH to the next handler
   //   3. If fn() returns a Promise, chain WAITS for it
   //   4. If fn() throws, that error replaces the original
-  finally(fn: () => void | PromiseLike<void>): MyPromise<T> {
+  finally(fn: () => void | Thenable<void>): MyPromise<T> {
     return this.then(
       // Fulfilled branch: run fn, wait for it, then pass original value through
       (value) =>
@@ -259,9 +259,11 @@ export class MyPromise<T>{
   // If you pass in a MyPromise, returns it as-is (no wrapping).
   // If you pass in a thenable, adopts its state.
   // If you pass in a plain value, wraps it.
-  static resolve<T>(value: T | PromiseLike<T>): MyPromise<T> {
+  static resolve(): MyPromise<void>
+  static resolve<T>(value: T | Thenable<T>): MyPromise<T>
+  static resolve<T>(value?: T | Thenable<T>): MyPromise<T | void> {
     if (value instanceof MyPromise) return value
-    return new MyPromise<T>((res) => res(value))
+    return new MyPromise<T | void>((res) => res(value as T))
   }
  
   // ─── Static: reject ──────────────────────────────────────────────────────────
@@ -282,10 +284,10 @@ export class MyPromise<T>{
   //   await promise
   static withResolvers<T>(): {
     promise: MyPromise<T>
-    resolve: (value: T | PromiseLike<T>) => void
+    resolve: (value: T | Thenable<T>) => void
     reject: (reason?: unknown) => void
   } {
-    let resolve!: (value: T | PromiseLike<T>) => void
+    let resolve!: (value: T | Thenable<T>) => void
     let reject!: (reason?: unknown) => void
  
     const promise = new MyPromise<T>((res, rej) => {
@@ -302,7 +304,7 @@ export class MyPromise<T>{
   // Waits for ALL promises to fulfill.
   // If ANY rejects, immediately rejects (short-circuits).
   // Results array preserves INPUT ORDER, not arrival order.
-  static all<T>(promises: (T | PromiseLike<T>)[]): MyPromise<T[]> {
+  static all<T>(promises: (T | Thenable<T>)[]): MyPromise<T[]> {
     return new MyPromise<T[]>((resolve, reject) => {
       // Edge case: empty array resolves immediately with [].
       if (promises.length === 0) {
@@ -335,7 +337,7 @@ export class MyPromise<T>{
   // NEVER rejects itself — always resolves with an array of result objects.
   // Each object has { status: 'fulfilled', value } or { status: 'rejected', reason }.
   static allSettled<T>(
-    promises: (T | PromiseLike<T>)[]
+    promises: (T | Thenable<T>)[]
   ): MyPromise<({ status: 'fulfilled'; value: T } | { status: 'rejected'; reason: unknown })[]> {
     return new MyPromise((resolve) => {
       if (promises.length === 0) {
@@ -370,7 +372,7 @@ export class MyPromise<T>{
   //
   // Edge case: empty array → stays PENDING FOREVER.
   // This matches native Promise.race([]) behaviour. Don't change it.
-  static race<T>(promises: (T | PromiseLike<T>)[]): MyPromise<T> {
+  static race<T>(promises: (T | Thenable<T>)[]): MyPromise<T> {
     return new MyPromise<T>((resolve, reject) => {
       // No empty-array check here — empty means pending forever.
       promises.forEach((p) => {
@@ -390,7 +392,7 @@ export class MyPromise<T>{
   // This is the inverse of Promise.all:
   //   .all → needs ALL to succeed, fails on first rejection
   //   .any → needs ONE to succeed, fails only if ALL reject
-  static any<T>(promises: (T | PromiseLike<T>)[]): MyPromise<T> {
+  static any<T>(promises: (T | Thenable<T>)[]): MyPromise<T> {
     return new MyPromise<T>((resolve, reject) => {
       // Edge case: empty array → reject immediately with empty AggregateError.
       if (promises.length === 0) {
@@ -425,7 +427,7 @@ export class MyPromise<T>{
 
 
 
-function isThenable<T>(value: unknown): value is PromiseLike<T> {
+function isThenable<T>(value: unknown): value is Thenable<T> {
   return (
     value !== null &&
     (typeof value === 'object' || typeof value === 'function') &&
