@@ -44,15 +44,15 @@ export interface Handler<T>{
 }
 
 export type Executor<T>=(
-    resolve:(value:T | PromiseLike<T>)=>void,
+    resolve:(value:T | Thenable<T>)=>void,
     reject:(reason?:unknown)=>void
 )=>void
 
-export interface PromiseLike<T>{
+export interface Thenable<T>{
     then<R>( //then is a method inside interface 
-        onFulfilled?:(value:T)=>R|PromiseLike<R>,
-        onRejected?:(reason:unknown)=>R|PromiseLike<R>
-    ):PromiseLike<R>//ye bataraha hai ki jab then function apna kaam krlega to wo return kya krega 
+        onFulfilled?:(value:T)=>R|Thenable<R>,
+        onRejected?:(reason:unknown)=>R|Thenable<R>
+    ):Thenable<R>//ye bataraha hai ki jab then function apna kaam krlega to wo return kya krega 
 }
 /**
  * when we do export interface {} ,then ye wala bracker directly use krlete hai 
